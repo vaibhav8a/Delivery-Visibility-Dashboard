@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Visibility Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --color-on-time: #10b981;
+            --color-delayed: #ef4444;
+            --color-in-transit: #f59e0b;
+            --color-primary: #3b82f6;
+            --color-secondary: #8b5cf6;
+        }
+
+        * {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .card:hover {
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.25), 0 10px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-8px) scale(1.02);
+        }
+
+        .kpi-card {
+            padding: 24px;
+            background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+            border-left: 4px solid var(--color-primary);
+        }
+
+        .kpi-card:hover {
+            background: linear-gradient(135deg, #f0f7ff 0%, #f9f9fb 100%);
+        }
+
+        .kpi-label {
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-icon {
+            font-size: 28px;
+            color: var(--color-primary);
+            opacity: 0.2;
+            margin-bottom: 8px;
+            animation: bounce 2s infinite;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .status-badge:hover {
+            transform: scale(1.1) translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-on-time {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-delayed {
+            background-color: #fee2e2;
+            color: #7f1d1d;
+        }
+
+        .status-in-transit {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+
+        table tbody tr:hover {
+            background-color: #f0f7ff;
+            box-shadow: inset 0 0 8px rgba(102, 126, 234, 0.15);
+            transform: scale(1.01);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        .filter-input {
+            padding: 10px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-input:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            transform: scale(1.01);
+        }
+
+        .header-gradient {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: white;
+        }
+
+        .insight-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fce7f3 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .insight-box:hover {
+            transform: translateX(4px);
+            box-shadow: 0 8px 16px rgba(245, 158, 11, 0.2);
+        }
+
+        .insight-box.alert {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-left-color: #ef4444;
+        }
+
+        .insight-box.alert:hover {
+            box-shadow: 0 8px 16px rgba(239, 68, 68, 0.2);
+        }
+
+        .insight-box.success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-left-color: #10b981;
+        }
+
+        .insight-box.success:hover {
+            box-shadow: 0 8px 16px rgba(16, 185, 129, 0.2);
+        }
+
+        .animation-fade {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        @keyframes glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 5px rgba(102, 126, 234, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(102, 126, 234, 0.8);
+            }
+        }
+
+        .row-delayed {
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+        }
+
+        .row-on-time {
+            background-color: #f0fdf4;
+            border-left: 4px solid #10b981;
+        }
+
+        .row-in-transit {
+            background-color: #fffbeb;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        /* Animated Vehicle Movement Styles */
+        .vehicle-road {
+            background: linear-gradient(90deg, #e5e7eb 0%, #d1d5db 50%, #e5e7eb 100%);
+            border-top: 2px dashed #9ca3af;
+            border-bottom: 2px dashed #9ca3af;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            margin-top: 20px;
+            position: relative;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .vehicle-road:hover .vehicle {
+            animation-play-state: paused;
+        }
+
+        .vehicle {
+            position: absolute;
+            font-size: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+            cursor: pointer;
+            transition: filter 0.3s ease;
+        }
+
+        .vehicle:hover {
+            filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.3));
+            transform: scale(1.1);
+        }
+
+        /* Vehicle Animation Keyframes */
+        @keyframes moveVehicle1 {
+            0% {
+                left: -10%;
+            }
+
+            100% {
+                left: 110%;
+            }
+        }
+
+        @keyframes moveVehicle2 {
+            0% {
+                left: -10%;
+            }
+
+            100% {
+                left: 110%;
+            }
+        }
+
+        @keyframes moveVehicle3 {
+            0% {
+                left: -10%;
+            }
+
+            100% {
+                left: 110%;
+            }
+        }
+
+        @keyframes moveVehicle4 {
+            0% {
+                left: -10%;
+            }
+
+            100% {
+                left: 110%;
+            }
+        }
+
+        @keyframes moveVehicle5 {
+            0% {
+                left: -10%;
+            }
+
+            100% {
+                left: 110%;
+            }
+        }
+
+        /* Individual Vehicle Animation Assignments */
+        .vehicle-1 {
+            animation: moveVehicle1 6s linear infinite;
+            animation-delay: 0s;
+            color: #ef4444;
+        }
+
+        .vehicle-2 {
+            animation: moveVehicle2 7s linear infinite;
+            animation-delay: -1.5s;
+            color: #3b82f6;
+        }
+
+        .vehicle-3 {
+            animation: moveVehicle3 6.5s linear infinite;
+            animation-delay: -3s;
+            color: #10b981;
+        }
+
+        .vehicle-4 {
+            animation: moveVehicle4 7.5s linear infinite;
+            animation-delay: -4.5s;
+            color: #f59e0b;
+        }
+
+        .vehicle-5 {
+            animation: moveVehicle5 6.2s linear infinite;
+            animation-delay: -6s;
+            color: #8b5cf6;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .vehicle-road {
+                height: 70px;
+            }
+
+            .vehicle {
+                font-size: 32px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .vehicle-road {
+                height: 60px;
+            }
+
+            .vehicle {
+                font-size: 28px;
+            }
+        }
+
+        /* Live Indicator Styles */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.15);
+            padding: 6px 12px;
+            border-radius: 20px;
+            margin-left: 12px;
+            vertical-align: middle;
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #10b981;
+            border-radius: 50%;
+            animation: livePulse 1.5s ease-in-out infinite;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+        }
+
+        .live-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: #10b981;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        @keyframes livePulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.3);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Title Glow Animation */
+        .header-gradient h1 {
+            animation: titleGlow 2.5s ease-in-out infinite;
+        }
+
+        @keyframes titleGlow {
+            0% {
+                text-shadow: 0 0 10px rgba(96, 165, 250, 0.4), 0 0 20px rgba(34, 211, 238, 0.2);
+            }
+
+            50% {
+                text-shadow: 0 0 20px rgba(96, 165, 250, 0.8), 0 0 40px rgba(34, 211, 238, 0.5);
+            }
+
+            100% {
+                text-shadow: 0 0 10px rgba(96, 165, 250, 0.4), 0 0 20px rgba(34, 211, 238, 0.2);
+            }
+        }
+
+        /* Animated Gradient Text */
+        .dashboard-title {
+            background: linear-gradient(90deg, #60a5fa, #8b5cf6, #06b6d4, #60a5fa, #8b5cf6);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientShift 4s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% center;
+            }
+
+            50% {
+                background-position: 100% center;
+            }
+
+            100% {
+                background-position: 0% center;
+            }
+        }
+
+        /* Moving Truck Across Title */
+        .title-truck {
+            display: inline-block;
+            position: relative;
+            margin-left: 8px;
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.7);
+            animation: truckDrive 8s linear infinite;
+            opacity: 0;
+        }
+
+        @keyframes truckDrive {
+            0% {
+                left: -40px;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                left: calc(100vw - 100px);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="min-h-screen py-8 px-4">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <div class="header-gradient rounded-lg p-8 mb-8 shadow-lg">
+                <h1 class="text-4xl font-bold mb-2 flex items-center gap-3">
+                    <i class="fas fa-truck"></i>
+                    <span class="dashboard-title">Delivery Visibility Dashboard</span>
+                    <span class="title-truck">
+                        <i class="fas fa-truck"></i>
+                    </span>
+                    <span class="live-indicator">
+                        <span class="live-dot"></span>
+                        <span class="live-text">Live Tracking</span>
+                    </span>
+                </h1>
+                <p class="text-blue-100">Real-time supply chain monitoring and insights</p>
+
+                <!-- Animated Vehicle Road -->
+                <div class="vehicle-road">
+                    <div class="vehicle vehicle-1" title="Truck - Red Route">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div class="vehicle vehicle-2" title="Delivery Van - Blue Route">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <div class="vehicle vehicle-3" title="Cargo - Green Route">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div class="vehicle vehicle-4" title="Package Truck - Yellow Route">
+                        <i class="fas fa-dolly"></i>
+                    </div>
+                    <div class="vehicle vehicle-5" title="Fast Delivery - Purple Route">
+                        <i class="fas fa-shipping-fast"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card p-6 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-map-marker-alt mr-2"></i>Region
+                        </label>
+                        <select id="regionFilter" class="filter-input w-full">
+                            <option value="">All Regions</option>
+                            <option value="North America">North America</option>
+                            <option value="Europe">Europe</option>
+                            <option value="Asia Pacific">Asia Pacific</option>
+                            <option value="Latin America">Latin America</option>
+                            <option value="Middle East">Middle East</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-flag mr-2"></i>Status
+                        </label>
+                        <select id="statusFilter" class="filter-input w-full">
+                            <option value="">All Status</option>
+                            <option value="On-Time">On-Time</option>
+                            <option value="Delayed">Delayed</option>
+                            <option value="In-Transit">In-Transit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-calendar mr-2"></i>Date Range
+                        </label>
+                        <select id="dateFilter" class="filter-input w-full">
+                            <option value="">Last 30 Days</option>
+                            <option value="7">Last 7 Days</option>
+                            <option value="14">Last 14 Days</option>
+                            <option value="60">Last 60 Days</option>
+                        </select>
+                    </div>
+                </div>
+                <button id="filterBtn"
+                    class="mt-4 px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-2xl hover:scale-105 active:scale-95">
+                    <i class="fas fa-filter"></i>Apply Filters
+                </button>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <div class="card kpi-card animation-fade">
+                    <div class="kpi-icon"><i class="fas fa-boxes"></i></div>
+                    <div class="kpi-label">Total Shipments</div>
+                    <div class="kpi-value" id="totalShipments">0</div>
+                    <p class="text-xs text-gray-500 mt-2">Active shipments</p>
+                </div>
+
+                <div class="card kpi-card animation-fade">
+                    <div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="kpi-label">On-Time %</div>
+                    <div class="kpi-value" id="onTimePercent" style="color: var(--color-on-time);">0%</div>
+                    <p class="text-xs text-gray-500 mt-2">On-time deliveries</p>
+                </div>
+
+                <div class="card kpi-card animation-fade">
+                    <div class="kpi-icon"><i class="fas fa-exclamation-circle"></i></div>
+                    <div class="kpi-label">Delayed</div>
+                    <div class="kpi-value" id="delayedCount" style="color: var(--color-delayed);">0</div>
+                    <p class="text-xs text-gray-500 mt-2">Shipments delayed</p>
+                </div>
+
+                <div class="card kpi-card animation-fade">
+                    <div class="kpi-icon"><i class="fas fa-clock"></i></div>
+                    <div class="kpi-label">Avg Delivery Time</div>
+                    <div class="kpi-value" id="avgDeliveryTime">0 days</div>
+                    <p class="text-xs text-gray-500 mt-2">Average duration</p>
+                </div>
+
+                <div class="card kpi-card animation-fade">
+                    <div class="kpi-icon"><i class="fas fa-dollar-sign"></i></div>
+                    <div class="kpi-label">Total Cost</div>
+                    <div class="kpi-value" id="totalCost" style="color: var(--color-secondary);">$0</div>
+                    <p class="text-xs text-gray-500 mt-2">All shipments</p>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Line Chart -->
+                <div class="card p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-line text-blue-500"></i>
+                        On-Time vs Delayed Trend
+                    </h2>
+                    <div class="chart-container">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Pie Chart -->
+                <div class="card p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-pie text-purple-500"></i>
+                        Delivery Status Distribution
+                    </h2>
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bar Chart (Full Width) -->
+            <div class="card p-6 mb-8">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-chart-bar text-green-500"></i>
+                    Delay Percentage by Region
+                </h2>
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Insights Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="card p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-lightbulb text-yellow-500"></i>
+                        Key Insights
+                    </h2>
+                    <div class="insight-box">
+                        <p class="text-sm font-semibold text-gray-800">
+                            <i class="fas fa-map-marker-alt mr-2 text-red-500"></i>Most Delayed Region
+                        </p>
+                        <p class="text-2xl font-bold text-gray-900 mt-2" id="mostDelayedRegion">-</p>
+                        <p class="text-xs text-gray-600 mt-1">Average delay in this region</p>
+                    </div>
+                </div>
+
+                <div class="card p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-red-500"></i>
+                        Cost Impact
+                    </h2>
+                    <div class="insight-box alert">
+                        <p class="text-sm font-semibold text-gray-800">
+                            <i class="fas fa-money-bill-wave mr-2"></i>Cost Lost to Delays
+                        </p>
+                        <p class="text-2xl font-bold text-gray-900 mt-2" id="costLostToDelays">$0</p>
+                        <p class="text-xs text-gray-600 mt-1">Additional costs incurred</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Highlights Section -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="card p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-green-500">
+                    <h3 class="text-lg font-bold text-green-900 mb-3 flex items-center gap-2">
+                        <i class="fas fa-trophy"></i>
+                        Best Performing Region
+                    </h3>
+                    <p class="text-3xl font-bold text-green-600 mb-2" id="bestRegion">-</p>
+                    <p class="text-sm text-green-700"><i class="fas fa-check-circle mr-2"></i><span
+                            id="bestRegionPercent">0%</span> On-Time Rate</p>
+                </div>
+
+                <div class="card p-6 bg-gradient-to-br from-blue-50 to-cyan-50 border-l-4 border-blue-500">
+                    <h3 class="text-lg font-bold text-blue-900 mb-3 flex items-center gap-2">
+                        <i class="fas fa-star"></i>
+                        Critical Shipments
+                    </h3>
+                    <p class="text-3xl font-bold text-blue-600 mb-2" id="criticalShipments">0</p>
+                    <p class="text-sm text-blue-700"><i class="fas fa-warning mr-2"></i>High Risk Shipments</p>
+                </div>
+
+                <div class="card p-6 bg-gradient-to-br from-orange-50 to-amber-50 border-l-4 border-orange-500">
+                    <h3 class="text-lg font-bold text-orange-900 mb-3 flex items-center gap-2">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Avg Delivery Speed
+                    </h3>
+                    <p class="text-3xl font-bold text-orange-600 mb-2" id="avgSpeed">-</p>
+                    <p class="text-sm text-orange-700"><i class="fas fa-calendar mr-2"></i><span
+                            id="avgSpeedDays">0</span> days average</p>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="card p-6 mb-8">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-table text-indigo-500"></i>
+                    Shipment Details
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 border-b-2 border-gray-200">
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Shipment ID</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Origin</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Destination</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">ETA</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Actual Delivery</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Delay (min)</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Cost</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Risk</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- Dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-gray-600 text-sm">
+                <p>Last updated: <span id="lastUpdated"></span> | Supply Chain Management System |
+                    PES1UG23CS666,PES1UG23CS324,PES1UG23CS192</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== DUMMY DATA ====================
+        const shipmentData = [
+            { id: 'SHP001', origin: 'North America', destination: 'Europe', eta: '2026-04-10', actual: '2026-04-10', delayMinutes: 0, cost: 1200, status: 'On-Time', date: new Date(2026, 3, 10) },
+            { id: 'SHP002', origin: 'Europe', destination: 'Asia Pacific', eta: '2026-04-08', actual: '2026-04-12', delayMinutes: 5760, cost: 1500, status: 'Delayed', date: new Date(2026, 3, 8) },
+            { id: 'SHP003', origin: 'Asia Pacific', destination: 'North America', eta: '2026-04-12', actual: null, delayMinutes: 0, cost: 1800, status: 'In-Transit', date: new Date(2026, 3, 3) },
+            { id: 'SHP004', origin: 'Latin America', destination: 'North America', eta: '2026-04-09', actual: '2026-04-09', delayMinutes: 0, cost: 950, status: 'On-Time', date: new Date(2026, 3, 6) },
+            { id: 'SHP005', origin: 'Middle East', destination: 'Europe', eta: '2026-04-11', actual: '2026-04-14', delayMinutes: 4320, cost: 1350, status: 'Delayed', date: new Date(2026, 3, 5) },
+            { id: 'SHP006', origin: 'North America', destination: 'Latin America', eta: '2026-04-07', actual: '2026-04-07', delayMinutes: 0, cost: 800, status: 'On-Time', date: new Date(2026, 3, 7) },
+            { id: 'SHP007', origin: 'Europe', destination: 'Middle East', eta: '2026-04-13', actual: null, delayMinutes: 0, cost: 1100, status: 'In-Transit', date: new Date(2026, 3, 9) },
+            { id: 'SHP008', origin: 'Asia Pacific', destination: 'Latin America', eta: '2026-04-06', actual: '2026-04-11', delayMinutes: 7200, cost: 2000, status: 'Delayed', date: new Date(2026, 3, 2) },
+            { id: 'SHP009', origin: 'Latin America', destination: 'Europe', eta: '2026-04-12', actual: '2026-04-12', delayMinutes: 0, cost: 1400, status: 'On-Time', date: new Date(2026, 3, 11) },
+            { id: 'SHP010', origin: 'North America', destination: 'Asia Pacific', eta: '2026-04-08', actual: '2026-04-13', delayMinutes: 7200, cost: 2200, status: 'Delayed', date: new Date(2026, 3, 4) },
+            { id: 'SHP011', origin: 'Middle East', destination: 'Asia Pacific', eta: '2026-04-14', actual: null, delayMinutes: 0, cost: 1600, status: 'In-Transit', date: new Date(2026, 3, 12) },
+            { id: 'SHP012', origin: 'Europe', destination: 'North America', eta: '2026-04-10', actual: '2026-04-10', delayMinutes: 0, cost: 1300, status: 'On-Time', date: new Date(2026, 3, 8) },
+            { id: 'SHP013', origin: 'Asia Pacific', destination: 'Middle East', eta: '2026-04-11', actual: '2026-04-15', delayMinutes: 5760, cost: 1700, status: 'Delayed', date: new Date(2026, 3, 1) },
+            { id: 'SHP014', origin: 'Latin America', destination: 'Middle East', eta: '2026-04-13', actual: null, delayMinutes: 0, cost: 1050, status: 'In-Transit', date: new Date(2026, 3, 10) },
+            { id: 'SHP015', origin: 'North America', destination: 'Europe', eta: '2026-04-09', actual: '2026-04-09', delayMinutes: 0, cost: 1250, status: 'On-Time', date: new Date(2026, 3, 6) },
+        ];
+
+        // ==================== STATE & VARIABLES ====================
+        let filteredData = [...shipmentData];
+        let lineChart, barChart, pieChart;
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function getStatusColor(status) {
+            switch (status) {
+                case 'On-Time': return '#10b981';
+                case 'Delayed': return '#ef4444';
+                case 'In-Transit': return '#f59e0b';
+                default: return '#6b7280';
+            }
+        }
+
+        function getStatusBadgeClass(status) {
+            switch (status) {
+                case 'On-Time': return 'status-on-time';
+                case 'Delayed': return 'status-delayed';
+                case 'In-Transit': return 'status-in-transit';
+                default: return '';
+            }
+        }
+
+        function formatDate(date) {
+            if (!date) return '-';
+            return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(value);
+        }
+
+        function calculateKPIs(data) {
+            const total = data.length;
+            const onTimeCount = data.filter(d => d.status === 'On-Time').length;
+            const delayedCount = data.filter(d => d.status === 'Delayed').length;
+            const onTimePercent = total > 0 ? Math.round((onTimeCount / total) * 100) : 0;
+
+            let totalDeliveryMinutes = 0;
+            let delayedShipmentsCount = 0;
+            data.forEach(d => {
+                if (d.actual) {
+                    const eta = new Date(d.eta);
+                    const actual = new Date(d.actual);
+                    const deliveryTime = (actual - eta) / (1000 * 60 * 24);
+                    totalDeliveryMinutes += Math.max(0, deliveryTime);
+                    if (d.status === 'Delayed') delayedShipmentsCount++;
+                }
+            });
+
+            const avgDeliveryDays = data.filter(d => d.actual).length > 0
+                ? Math.round(totalDeliveryMinutes / data.filter(d => d.actual).length)
+                : 0;
+
+            const totalCost = data.reduce((sum, d) => sum + d.cost, 0);
+            const costLostToDelays = data
+                .filter(d => d.status === 'Delayed')
+                .reduce((sum, d) => sum + (d.cost * 0.15), 0);
+
+            return {
+                total,
+                onTimePercent,
+                delayedCount,
+                avgDeliveryDays,
+                totalCost,
+                costLostToDelays
+            };
+        }
+
+        function updateKPICards(data) {
+            const kpis = calculateKPIs(data);
+            document.getElementById('totalShipments').textContent = kpis.total;
+            document.getElementById('onTimePercent').textContent = kpis.onTimePercent + '%';
+            document.getElementById('delayedCount').textContent = kpis.delayedCount;
+            document.getElementById('avgDeliveryTime').textContent = kpis.avgDeliveryDays + ' days';
+            document.getElementById('totalCost').textContent = formatCurrency(kpis.totalCost);
+        }
+
+        function updateTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(shipment => {
+                const row = document.createElement('tr');
+                let rowClass = '';
+                if (shipment.status === 'Delayed') rowClass = 'row-delayed';
+                else if (shipment.status === 'On-Time') rowClass = 'row-on-time';
+                else if (shipment.status === 'In-Transit') rowClass = 'row-in-transit';
+                row.className = rowClass;
+
+                // Calculate risk score (simple logic)
+                const riskScore = shipment.delayMinutes > 0 ? 'HIGH' : 'LOW';
+                const riskColor = shipment.delayMinutes > 0 ? '#ef4444' : '#10b981';
+
+                row.innerHTML = `
+                    <td class="px-4 py-3 font-mono text-blue-600">${shipment.id}</td>
+                    <td class="px-4 py-3">${shipment.origin}</td>
+                    <td class="px-4 py-3">${shipment.destination}</td>
+                    <td class="px-4 py-3">
+                        <span class="status-badge ${getStatusBadgeClass(shipment.status)}">
+                            ${shipment.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">${formatDate(shipment.eta)}</td>
+                    <td class="px-4 py-3">${formatDate(shipment.actual)}</td>
+                    <td class="px-4 py-3">
+                        <span style="color: ${shipment.delayMinutes > 0 ? '#ef4444' : '#10b981'}; font-weight: 600;">
+                            ${shipment.delayMinutes > 0 ? '+' : ''}${shipment.delayMinutes}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 font-semibold">${formatCurrency(shipment.cost)}</td>
+                    <td class="px-4 py-3">
+                        <span style="color: ${riskColor}; font-weight: 600;">
+                            <i class="fas fa-${riskScore === 'HIGH' ? 'exclamation-circle' : 'check-circle'}"></i> ${riskScore}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateInsights(data) {
+            // Most delayed region
+            const regionDelays = {};
+            const regionStats = {};
+
+            data.forEach(d => {
+                if (!regionStats[d.origin]) {
+                    regionStats[d.origin] = { onTime: 0, delayed: 0, inTransit: 0, total: 0 };
+                }
+                regionStats[d.origin].total++;
+                if (d.status === 'On-Time') regionStats[d.origin].onTime++;
+                else if (d.status === 'Delayed') {
+                    regionStats[d.origin].delayed++;
+                    regionDelays[d.origin] = (regionDelays[d.origin] || 0) + d.delayMinutes;
+                }
+                else if (d.status === 'In-Transit') regionStats[d.origin].inTransit++;
+            });
+
+            const mostDelayedRegion = Object.keys(regionDelays).length > 0
+                ? Object.entries(regionDelays).sort((a, b) => b[1] - a[1])[0][0]
+                : 'N/A';
+
+            document.getElementById('mostDelayedRegion').textContent = mostDelayedRegion;
+
+            // Cost lost to delays
+            const kpis = calculateKPIs(data);
+            document.getElementById('costLostToDelays').textContent = formatCurrency(kpis.costLostToDelays);
+
+            // Highlights: Best performing region
+            const bestRegion = Object.entries(regionStats).reduce((best, [region, stats]) => {
+                const onTimePercent = stats.total > 0 ? (stats.onTime / stats.total) * 100 : 0;
+                const bestPercent = best.percent || 0;
+                return onTimePercent > bestPercent ? { region, percent: onTimePercent } : best;
+            }, { region: 'N/A', percent: 0 });
+
+            document.getElementById('bestRegion').textContent = bestRegion.region;
+            document.getElementById('bestRegionPercent').textContent = Math.round(bestRegion.percent) + '%';
+
+            // Critical shipments (high risk)
+            const criticalCount = data.filter(d => d.delayMinutes > 0).length;
+            document.getElementById('criticalShipments').textContent = criticalCount;
+
+            // Average delivery speed
+            let totalDays = 0;
+            let completedCount = 0;
+            data.forEach(d => {
+                if (d.actual) {
+                    const eta = new Date(d.eta);
+                    const actual = new Date(d.actual);
+                    const daysDiff = (actual - eta) / (1000 * 60 * 60 * 24);
+                    totalDays += Math.max(0, daysDiff);
+                    completedCount++;
+                }
+            });
+            const avgDays = completedCount > 0 ? Math.round(totalDays / completedCount * 10) / 10 : 0;
+            document.getElementById('avgSpeed').textContent = avgDays > 0 ? '+' + avgDays : '0';
+            document.getElementById('avgSpeedDays').textContent = avgDays;
+        }
+
+        function updateCharts(data) {
+            updateLineChart(data);
+            updateBarChart(data);
+            updatePieChart(data);
+        }
+
+        function updateLineChart(data) {
+            // Group by date
+            const dateGroups = {};
+            data.forEach(d => {
+                const dateKey = formatDate(d.date);
+                if (!dateGroups[dateKey]) {
+                    dateGroups[dateKey] = { onTime: 0, delayed: 0 };
+                }
+                if (d.status === 'On-Time') dateGroups[dateKey].onTime++;
+                else if (d.status === 'Delayed') dateGroups[dateKey].delayed++;
+            });
+
+            const sortedDates = Object.keys(dateGroups).sort((a, b) => new Date(a) - new Date(b));
+            const onTimeData = sortedDates.map(date => dateGroups[date].onTime);
+            const delayedData = sortedDates.map(date => dateGroups[date].delayed);
+
+            if (lineChart) lineChart.destroy();
+
+            const ctx = document.getElementById('lineChart').getContext('2d');
+            lineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [
+                        {
+                            label: 'On-Time Deliveries',
+                            data: onTimeData,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: '#10b981',
+                            borderWidth: 3
+                        },
+                        {
+                            label: 'Delayed Deliveries',
+                            data: delayedData,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: '#ef4444',
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: { padding: 15, font: { size: 12, weight: 'bold' } }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateBarChart(data) {
+            const regionDelays = {};
+            const regionTotals = {};
+
+            data.forEach(d => {
+                regionTotals[d.origin] = (regionTotals[d.origin] || 0) + 1;
+                if (d.status === 'Delayed') {
+                    regionDelays[d.origin] = (regionDelays[d.origin] || 0) + 1;
+                }
+            });
+
+            const regions = Object.keys(regionTotals);
+            const delayPercentages = regions.map(region =>
+                regionTotals[region] > 0 ? ((regionDelays[region] || 0) / regionTotals[region]) * 100 : 0
+            );
+
+            if (barChart) barChart.destroy();
+
+            const ctx = document.getElementById('barChart').getContext('2d');
+            barChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: regions,
+                    datasets: [{
+                        label: 'Delay Percentage (%)',
+                        data: delayPercentages,
+                        backgroundColor: delayPercentages.map(val => val > 30 ? '#ef4444' : val > 15 ? '#f59e0b' : '#10b981'),
+                        borderRadius: 8,
+                        borderSkipped: false,
+                        hoverBackgroundColor: '#3b82f6'
+                    }]
+                },
+                options: {
+                    indexAxis: 'x',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePieChart(data) {
+            const statusCounts = {
+                'On-Time': data.filter(d => d.status === 'On-Time').length,
+                'Delayed': data.filter(d => d.status === 'Delayed').length,
+                'In-Transit': data.filter(d => d.status === 'In-Transit').length
+            };
+
+            if (pieChart) pieChart.destroy();
+
+            const ctx = document.getElementById('pieChart').getContext('2d');
+            pieChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
+                        borderColor: 'white',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: { padding: 15, font: { size: 12, weight: 'bold' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function applyFilters() {
+            const regionFilter = document.getElementById('regionFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const dateFilter = document.getElementById('dateFilter').value;
+
+            filteredData = shipmentData.filter(shipment => {
+                let match = true;
+
+                if (regionFilter && shipment.origin !== regionFilter) {
+                    match = false;
+                }
+
+                if (statusFilter && shipment.status !== statusFilter) {
+                    match = false;
+                }
+
+                if (dateFilter) {
+                    const daysAgo = parseInt(dateFilter);
+                    const cutoffDate = new Date();
+                    cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
+                    if (shipment.date < cutoffDate) {
+                        match = false;
+                    }
+                }
+
+                return match;
+            });
+
+            updateDashboard(filteredData);
+        }
+
+        function updateDashboard(data) {
+            updateKPICards(data);
+            updateTable(data);
+            updateInsights(data);
+            updateCharts(data);
+        }
+
+        function init() {
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+            document.getElementById('filterBtn').addEventListener('click', applyFilters);
+
+            // Initialize dashboard
+            updateDashboard(filteredData);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
