@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Firestore Debug</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        pre {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔥 Firestore Debug Console</h1>
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="clearLogs()">Clear Logs</button>
+    <pre id="logs"></pre>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+
+    <script>
+        const logsEl = document.getElementById('logs');
+        let logs = [];
+
+        function log(msg, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const formatted = `[${timestamp}] ${msg}`;
+            logs.push(formatted);
+            console.log(formatted);
+            logsEl.textContent = logs.join('\n');
+            logsEl.scrollTop = logsEl.scrollHeight;
+        }
+
+        function clearLogs() {
+            logs = [];
+            logsEl.textContent = '';
+        }
+
+        async function testConnection() {
+            try {
+                log('🔄 Starting connection test...');
+
+                log('1️⃣ Checking Firebase SDK...');
+                if (typeof firebase === 'undefined') {
+                    log('❌ Firebase not loaded!', 'error');
+                    return;
+                }
+                log('✅ Firebase SDK loaded');
+
+                log('2️⃣ Initializing Firebase...');
+                const firebaseConfig = {
+                    apiKey: "AIzaSyAFZuiEPNyi6WxEmd00hc0koSmIpBuQncE",
+                    authDomain: "tracking-visibility.firebaseapp.com",
+                    projectId: "tracking-visibility",
+                    storageBucket: "tracking-visibility.firebasestorage.app",
+                    messagingSenderId: "8328525364",
+                    appId: "1:8328525364:web:cfaa0cea06e4170ffdfc61",
+                    measurementId: "G-CQ9KWHBRBD"
+                };
+
+                // Check if already initialized
+                if (firebase.apps.length === 0) {
+                    firebase.initializeApp(firebaseConfig);
+                    log('✅ Firebase app initialized');
+                } else {
+                    log('✅ Firebase already initialized');
+                }
+
+                const db = firebase.firestore();
+                log('✅ Firestore instance created');
+
+                log('3️⃣ Fetching shipments collection...');
+                const snapshot = await db.collection('shipments').get();
+
+                log(`📊 Snapshot received`);
+                log(`   - Empty: ${snapshot.empty}`);
+                log(`   - Size: ${snapshot.size}`);
+                log(`   - Docs: ${snapshot.docs.length}`);
+
+                if (snapshot.empty) {
+                    log('⚠️ Collection is empty!', 'error');
+                    return;
+                }
+
+                log(`✅ Found ${snapshot.size} documents`);
+
+                snapshot.forEach((doc, index) => {
+                    const data = doc.data();
+                    log(`   ${index + 1}. ${doc.id}: ${data.status} - $${data.cost}`);
+                });
+
+                log('✅ Connection test SUCCESSFUL!', 'success');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                log(`   Code: ${error.code}`, 'error');
+                log(`   Full: ${JSON.stringify(error)}`, 'error');
+            }
+        }
+
+        log('🟢 Debug console ready. Click "Test Connection" button above.');
+    </script>
+</body>
+
+</html>

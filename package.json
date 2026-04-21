@@ -1,0 +1,32 @@
+{
+    "name": "delivery-visibility-dashboard",
+    "version": "1.0.0",
+    "description": "Real-time supply chain management dashboard with Firebase integration",
+    "main": "index.html",
+    "scripts": {
+        "seed": "node seed-firestore.js",
+        "seed:old": "node seed-firebase.js",
+        "seed:clear": "node scripts/clear-firebase.js",
+        "help": "echo 'Available commands: npm run seed'"
+    },
+    "keywords": [
+        "firebase",
+        "supply-chain",
+        "dashboard",
+        "realtime"
+    ],
+    "author": "PES1UG23CS666, PES1UG23CS324, PES1UG23CS192",
+    "license": "MIT",
+    "dependencies": {
+        "firebase-admin": "^12.0.0"
+    },
+    "devDependencies": {},
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/vaibhav8a/Delivery-Visibility-Dashboard.git"
+    },
+    "engines": {
+        "node": ">=14.0.0",
+        "npm": ">=6.0.0"
+    }
+}

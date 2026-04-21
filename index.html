@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
     <style>
         :root {
             --color-on-time: #10b981;
@@ -630,10 +633,10 @@
                 </div>
 
                 <div class="card kpi-card animation-fade">
-                    <div class="kpi-icon"><i class="fas fa-dollar-sign"></i></div>
-                    <div class="kpi-label">Total Cost</div>
-                    <div class="kpi-value" id="totalCost" style="color: var(--color-secondary);">$0</div>
-                    <p class="text-xs text-gray-500 mt-2">All shipments</p>
+                    <div class="kpi-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                    <div class="kpi-label">High Risk</div>
+                    <div class="kpi-value" id="highRiskCount" style="color: var(--color-delayed);">0</div>
+                    <p class="text-xs text-gray-500 mt-2">Predicted at risk</p>
                 </div>
             </div>
 
@@ -691,15 +694,15 @@
 
                 <div class="card p-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <i class="fas fa-exclamation-triangle text-red-500"></i>
-                        Cost Impact
+                        <i class="fas fa-brain text-purple-500"></i>
+                        Predictive Alerts
                     </h2>
                     <div class="insight-box alert">
                         <p class="text-sm font-semibold text-gray-800">
-                            <i class="fas fa-money-bill-wave mr-2"></i>Cost Lost to Delays
+                            <i class="fas fa-robot mr-2"></i>ML Prediction: Delay Risk
                         </p>
-                        <p class="text-2xl font-bold text-gray-900 mt-2" id="costLostToDelays">$0</p>
-                        <p class="text-xs text-gray-600 mt-1">Additional costs incurred</p>
+                        <p class="text-base font-bold text-gray-900 mt-2" id="highRiskPrediction">-</p>
+                        <p class="text-xs text-gray-600 mt-1">Based on distance, traffic, and weather</p>
                     </div>
                 </div>
             </div>
@@ -755,6 +758,7 @@
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700">Delay (min)</th>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700">Cost</th>
                                 <th class="px-4 py-3 text-left font-semibold text-gray-700">Risk</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Predicted Risk</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
@@ -773,23 +777,47 @@
     </div>
 
     <script>
-        // ==================== DUMMY DATA ====================
+        // ==================== FIREBASE CONFIGURATION ====================
+        // Firebase credentials for tracking-visibility project
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFZuiEPNyi6WxEmd00hc0koSmIpBuQncE",
+            authDomain: "tracking-visibility.firebaseapp.com",
+            projectId: "tracking-visibility",
+            storageBucket: "tracking-visibility.firebasestorage.app",
+            messagingSenderId: "8328525364",
+            appId: "1:8328525364:web:cfaa0cea06e4170ffdfc61",
+            measurementId: "G-CQ9KWHBRBD"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Disable offline persistence for web clients (can cause issues)
+        // db.enablePersistence().catch((err) => {
+        //     console.warn('⚠️ Offline persistence:', err.code);
+        // });
+
+        console.log('✅ Firebase initialized');
+        console.log('📍 Project ID:', firebaseConfig.projectId);
+        console.log('🔥 Firestore instance:', db);        // ==================== DUMMY DATA ====================
+        // This will be overridden by Firebase data once connected
         const shipmentData = [
-            { id: 'SHP001', origin: 'North America', destination: 'Europe', eta: '2026-04-10', actual: '2026-04-10', delayMinutes: 0, cost: 1200, status: 'On-Time', date: new Date(2026, 3, 10) },
-            { id: 'SHP002', origin: 'Europe', destination: 'Asia Pacific', eta: '2026-04-08', actual: '2026-04-12', delayMinutes: 5760, cost: 1500, status: 'Delayed', date: new Date(2026, 3, 8) },
-            { id: 'SHP003', origin: 'Asia Pacific', destination: 'North America', eta: '2026-04-12', actual: null, delayMinutes: 0, cost: 1800, status: 'In-Transit', date: new Date(2026, 3, 3) },
-            { id: 'SHP004', origin: 'Latin America', destination: 'North America', eta: '2026-04-09', actual: '2026-04-09', delayMinutes: 0, cost: 950, status: 'On-Time', date: new Date(2026, 3, 6) },
-            { id: 'SHP005', origin: 'Middle East', destination: 'Europe', eta: '2026-04-11', actual: '2026-04-14', delayMinutes: 4320, cost: 1350, status: 'Delayed', date: new Date(2026, 3, 5) },
-            { id: 'SHP006', origin: 'North America', destination: 'Latin America', eta: '2026-04-07', actual: '2026-04-07', delayMinutes: 0, cost: 800, status: 'On-Time', date: new Date(2026, 3, 7) },
-            { id: 'SHP007', origin: 'Europe', destination: 'Middle East', eta: '2026-04-13', actual: null, delayMinutes: 0, cost: 1100, status: 'In-Transit', date: new Date(2026, 3, 9) },
-            { id: 'SHP008', origin: 'Asia Pacific', destination: 'Latin America', eta: '2026-04-06', actual: '2026-04-11', delayMinutes: 7200, cost: 2000, status: 'Delayed', date: new Date(2026, 3, 2) },
-            { id: 'SHP009', origin: 'Latin America', destination: 'Europe', eta: '2026-04-12', actual: '2026-04-12', delayMinutes: 0, cost: 1400, status: 'On-Time', date: new Date(2026, 3, 11) },
-            { id: 'SHP010', origin: 'North America', destination: 'Asia Pacific', eta: '2026-04-08', actual: '2026-04-13', delayMinutes: 7200, cost: 2200, status: 'Delayed', date: new Date(2026, 3, 4) },
-            { id: 'SHP011', origin: 'Middle East', destination: 'Asia Pacific', eta: '2026-04-14', actual: null, delayMinutes: 0, cost: 1600, status: 'In-Transit', date: new Date(2026, 3, 12) },
-            { id: 'SHP012', origin: 'Europe', destination: 'North America', eta: '2026-04-10', actual: '2026-04-10', delayMinutes: 0, cost: 1300, status: 'On-Time', date: new Date(2026, 3, 8) },
-            { id: 'SHP013', origin: 'Asia Pacific', destination: 'Middle East', eta: '2026-04-11', actual: '2026-04-15', delayMinutes: 5760, cost: 1700, status: 'Delayed', date: new Date(2026, 3, 1) },
-            { id: 'SHP014', origin: 'Latin America', destination: 'Middle East', eta: '2026-04-13', actual: null, delayMinutes: 0, cost: 1050, status: 'In-Transit', date: new Date(2026, 3, 10) },
-            { id: 'SHP015', origin: 'North America', destination: 'Europe', eta: '2026-04-09', actual: '2026-04-09', delayMinutes: 0, cost: 1250, status: 'On-Time', date: new Date(2026, 3, 6) },
+            { id: 'SHP001', origin: 'North America', destination: 'Europe', eta: '2026-04-10', actual: '2026-04-10', delayMinutes: 0, cost: 1200, status: 'On-Time', date: new Date(2026, 3, 10), distance: 450, traffic: 'low', weather: 'clear' },
+            { id: 'SHP002', origin: 'Europe', destination: 'Asia Pacific', eta: '2026-04-08', actual: '2026-04-12', delayMinutes: 5760, cost: 1500, status: 'Delayed', date: new Date(2026, 3, 8), distance: 650, traffic: 'high', weather: 'stormy' },
+            { id: 'SHP003', origin: 'Asia Pacific', destination: 'North America', eta: '2026-04-12', actual: null, delayMinutes: 0, cost: 1800, status: 'In-Transit', date: new Date(2026, 3, 3), distance: 750, traffic: 'high', weather: 'rainy' },
+            { id: 'SHP004', origin: 'Latin America', destination: 'North America', eta: '2026-04-09', actual: '2026-04-09', delayMinutes: 0, cost: 950, status: 'On-Time', date: new Date(2026, 3, 6), distance: 300, traffic: 'low', weather: 'clear' },
+            { id: 'SHP005', origin: 'Middle East', destination: 'Europe', eta: '2026-04-11', actual: '2026-04-14', delayMinutes: 4320, cost: 1350, status: 'Delayed', date: new Date(2026, 3, 5), distance: 580, traffic: 'high', weather: 'hot' },
+            { id: 'SHP006', origin: 'North America', destination: 'Latin America', eta: '2026-04-07', actual: '2026-04-07', delayMinutes: 0, cost: 800, status: 'On-Time', date: new Date(2026, 3, 7), distance: 280, traffic: 'low', weather: 'clear' },
+            { id: 'SHP007', origin: 'Europe', destination: 'Middle East', eta: '2026-04-13', actual: null, delayMinutes: 0, cost: 1100, status: 'In-Transit', date: new Date(2026, 3, 9), distance: 520, traffic: 'medium', weather: 'cloudy' },
+            { id: 'SHP008', origin: 'Asia Pacific', destination: 'Latin America', eta: '2026-04-06', actual: '2026-04-11', delayMinutes: 7200, cost: 2000, status: 'Delayed', date: new Date(2026, 3, 2), distance: 820, traffic: 'high', weather: 'stormy' },
+            { id: 'SHP009', origin: 'Latin America', destination: 'Europe', eta: '2026-04-12', actual: '2026-04-12', delayMinutes: 0, cost: 1400, status: 'On-Time', date: new Date(2026, 3, 11), distance: 400, traffic: 'low', weather: 'clear' },
+            { id: 'SHP010', origin: 'North America', destination: 'Asia Pacific', eta: '2026-04-08', actual: '2026-04-13', delayMinutes: 7200, cost: 2200, status: 'Delayed', date: new Date(2026, 3, 4), distance: 900, traffic: 'high', weather: 'rainy' },
+            { id: 'SHP011', origin: 'Middle East', destination: 'Asia Pacific', eta: '2026-04-14', actual: null, delayMinutes: 0, cost: 1600, status: 'In-Transit', date: new Date(2026, 3, 12), distance: 600, traffic: 'high', weather: 'hot' },
+            { id: 'SHP012', origin: 'Europe', destination: 'North America', eta: '2026-04-10', actual: '2026-04-10', delayMinutes: 0, cost: 1300, status: 'On-Time', date: new Date(2026, 3, 8), distance: 350, traffic: 'low', weather: 'clear' },
+            { id: 'SHP013', origin: 'Asia Pacific', destination: 'Middle East', eta: '2026-04-11', actual: '2026-04-15', delayMinutes: 5760, cost: 1700, status: 'Delayed', date: new Date(2026, 3, 1), distance: 670, traffic: 'high', weather: 'stormy' },
+            { id: 'SHP014', origin: 'Latin America', destination: 'Middle East', eta: '2026-04-13', actual: null, delayMinutes: 0, cost: 1050, status: 'In-Transit', date: new Date(2026, 3, 10), distance: 550, traffic: 'medium', weather: 'cloudy' },
+            { id: 'SHP015', origin: 'North America', destination: 'Europe', eta: '2026-04-09', actual: '2026-04-09', delayMinutes: 0, cost: 1250, status: 'On-Time', date: new Date(2026, 3, 6), distance: 480, traffic: 'low', weather: 'clear' },
         ];
 
         // ==================== STATE & VARIABLES ====================
@@ -824,6 +852,41 @@
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(value);
         }
 
+        // ==================== DELAY PREDICTION LOGIC ====================
+        function predictDelayRisk(shipment) {
+            // ML-inspired prediction logic
+            let riskScore = 0;
+
+            // Factor 1: Distance > 500 km with high traffic
+            if (shipment.distance > 500 && shipment.traffic === 'high') {
+                riskScore += 3;
+            }
+
+            // Factor 2: Existing delay minutes
+            if (shipment.delayMinutes > 20) {
+                riskScore += 2;
+            }
+
+            // Factor 3: High traffic
+            if (shipment.traffic === 'high') {
+                riskScore += 1;
+            }
+
+            // Factor 4: Bad weather
+            if (shipment.weather === 'stormy' || shipment.weather === 'rainy') {
+                riskScore += 1;
+            }
+
+            // Categorize risk
+            if (riskScore >= 4) {
+                return { level: 'High', color: '#ef4444', icon: 'exclamation-circle' };
+            } else if (riskScore >= 2) {
+                return { level: 'Medium', color: '#f59e0b', icon: 'triangle-exclamation' };
+            } else {
+                return { level: 'Low', color: '#10b981', icon: 'check-circle' };
+            }
+        }
+
         function calculateKPIs(data) {
             const total = data.length;
             const onTimeCount = data.filter(d => d.status === 'On-Time').length;
@@ -851,13 +914,17 @@
                 .filter(d => d.status === 'Delayed')
                 .reduce((sum, d) => sum + (d.cost * 0.15), 0);
 
+            // High risk count
+            const highRiskCount = data.filter(d => predictDelayRisk(d).level === 'High').length;
+
             return {
                 total,
                 onTimePercent,
                 delayedCount,
                 avgDeliveryDays,
                 totalCost,
-                costLostToDelays
+                costLostToDelays,
+                highRiskCount
             };
         }
 
@@ -867,7 +934,7 @@
             document.getElementById('onTimePercent').textContent = kpis.onTimePercent + '%';
             document.getElementById('delayedCount').textContent = kpis.delayedCount;
             document.getElementById('avgDeliveryTime').textContent = kpis.avgDeliveryDays + ' days';
-            document.getElementById('totalCost').textContent = formatCurrency(kpis.totalCost);
+            document.getElementById('highRiskCount').textContent = kpis.highRiskCount;
         }
 
         function updateTable(data) {
@@ -885,6 +952,9 @@
                 // Calculate risk score (simple logic)
                 const riskScore = shipment.delayMinutes > 0 ? 'HIGH' : 'LOW';
                 const riskColor = shipment.delayMinutes > 0 ? '#ef4444' : '#10b981';
+
+                // Get predicted delay risk
+                const delayRisk = predictDelayRisk(shipment);
 
                 row.innerHTML = `
                     <td class="px-4 py-3 font-mono text-blue-600">${shipment.id}</td>
@@ -906,6 +976,11 @@
                     <td class="px-4 py-3">
                         <span style="color: ${riskColor}; font-weight: 600;">
                             <i class="fas fa-${riskScore === 'HIGH' ? 'exclamation-circle' : 'check-circle'}"></i> ${riskScore}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span style="color: ${delayRisk.color}; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-${delayRisk.icon}"></i> ${delayRisk.level}
                         </span>
                     </td>
                 `;
@@ -937,9 +1012,12 @@
 
             document.getElementById('mostDelayedRegion').textContent = mostDelayedRegion;
 
-            // Cost lost to delays
-            const kpis = calculateKPIs(data);
-            document.getElementById('costLostToDelays').textContent = formatCurrency(kpis.costLostToDelays);
+            // High risk prediction insight
+            const highRiskShipments = data.filter(d => predictDelayRisk(d).level === 'High');
+            const highRiskMessage = highRiskShipments.length > 0
+                ? `${highRiskShipments.length} shipment${highRiskShipments.length !== 1 ? 's are' : ' is'} at high risk of delay`
+                : 'All shipments are on track!';
+            document.getElementById('highRiskPrediction').textContent = highRiskMessage;
 
             // Highlights: Best performing region
             const bestRegion = Object.entries(regionStats).reduce((best, [region, stats]) => {
@@ -1177,12 +1255,106 @@
             updateCharts(data);
         }
 
+        // ==================== FIREBASE FUNCTIONS ====================
+        async function loadShipmentsFromFirebase() {
+            try {
+                console.log('🔄 [START] loadShipmentsFromFirebase called');
+                console.log('📌 Database reference type:', typeof db);
+                console.log('📌 Firebase apps:', firebase.apps.length);
+
+                console.log('🔄 Fetching shipments from Firestore...');
+
+                const startTime = Date.now();
+                const snapshot = await db.collection('shipments').get();
+                const endTime = Date.now();
+
+                console.log(`✅ Snapshot received in ${endTime - startTime}ms`);
+                console.log('📊 Snapshot details:');
+                console.log('   - Empty:', snapshot.empty);
+                console.log('   - Size:', snapshot.size);
+                console.log('   - Docs count:', snapshot.docs.length);
+
+                if (!snapshot.empty && snapshot.size > 0) {
+                    console.log('✅ Data found! Processing documents...');
+                    const shipmentsArray = [];
+
+                    snapshot.forEach((doc, index) => {
+                        const data = doc.data();
+                        console.log(`   ✅ Doc ${index + 1}: ${doc.id}`, data);
+                        shipmentsArray.push({
+                            ...data,
+                            id: data.id || doc.id,
+                            date: data.date && data.date.toDate ? data.date.toDate() : new Date(data.date)
+                        });
+                    });
+
+                    console.log('✅ Successfully converted', shipmentsArray.length, 'shipments from Firestore');
+                    filteredData = [...shipmentsArray];
+                    console.log('✅ FilteredData updated');
+
+                    updateDashboard(filteredData);
+                    console.log('✅ Dashboard updated with Firestore data');
+                    console.log('🔄 [END] loadShipmentsFromFirebase completed successfully');
+                } else {
+                    console.warn('⚠️ No data in Firestore (empty or 0 size)');
+                    console.warn('⚠️ Snapshot empty:', snapshot.empty, 'size:', snapshot.size);
+                    console.log('ℹ️ Using dummy data as fallback');
+                    filteredData = [...shipmentData];
+                    updateDashboard(filteredData);
+                }
+            } catch (error) {
+                console.error('❌ [ERROR] Exception in loadShipmentsFromFirebase');
+                console.error('   Error type:', error.constructor.name);
+                console.error('   Error code:', error.code);
+                console.error('   Error message:', error.message);
+                console.error('   Full error:', error);
+                console.log('⚠️ Falling back to dummy data');
+                filteredData = [...shipmentData];
+                updateDashboard(filteredData);
+            }
+        }        // Function to add shipment to Firebase (for admin/testing)
+        async function addShipmentToFirebase(shipment) {
+            try {
+                await db.collection('shipments').doc(shipment.id).set(shipment);
+                console.log('✅ Shipment added to Firestore:', shipment.id);
+                loadShipmentsFromFirebase(); // Refresh data
+            } catch (error) {
+                console.error('❌ Error adding shipment:', error);
+            }
+        }
+
+        // Real-time listener for shipment updates
+        function setupRealtimeListener() {
+            db.collection('shipments').onSnapshot(
+                (snapshot) => {
+                    const shipmentsArray = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        shipmentsArray.push({
+                            ...data,
+                            id: data.id || doc.id,
+                            date: data.date && data.date.toDate ? data.date.toDate() : new Date(data.date)
+                        });
+                    });
+                    filteredData = [...shipmentsArray];
+                    updateDashboard(filteredData);
+                    console.log('✅ Real-time update received:', shipmentsArray.length, 'shipments');
+                },
+                (error) => {
+                    console.error('❌ Error in real-time listener:', error);
+                }
+            );
+        }
+
         function init() {
             document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
             document.getElementById('filterBtn').addEventListener('click', applyFilters);
 
-            // Initialize dashboard
-            updateDashboard(filteredData);
+            // Load data from Firebase or use dummy data
+            loadShipmentsFromFirebase();
+
+            // Optional: Setup real-time listener for live updates
+            // setupRealtimeListener();
         }
 
         // Initialize on page load

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firestore Test</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <h1>Firestore Connection Test</h1>
+    <pre id="output"></pre>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(msg) {
+            console.log(msg);
+            output.textContent += msg + '\n';
+        }
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFZuiEPNyi6WxEmd00hc0koSmIpBuQncE",
+            authDomain: "tracking-visibility.firebaseapp.com",
+            projectId: "tracking-visibility",
+            storageBucket: "tracking-visibility.firebasestorage.app",
+            messagingSenderId: "8328525364",
+            appId: "1:8328525364:web:cfaa0cea06e4170ffdfc61",
+            measurementId: "G-CQ9KWHBRBD"
+        };
+        
+        log('Initializing Firebase...');
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        log('✅ Firebase initialized');
+        
+        async function testConnection() {
+            try {
+                log('\n📊 Fetching shipments...');
+                const snapshot = await db.collection('shipments').get();
+                log('✅ Firestore connected!');
+                log('Empty: ' + snapshot.empty);
+                log('Size: ' + snapshot.size);
+                
+                if (!snapshot.empty) {
+                    log('\n📋 Shipments found:');
+                    snapshot.forEach(doc => {
+                        log('  - ' + doc.id + ': ' + doc.data().status);
+                    });
+                } else {
+                    log('❌ No shipments in Firestore!');
+                }
+            } catch (error) {
+                log('❌ Error: ' + error.message);
+                log('Code: ' + error.code);
+            }
+        }
+        
+        testConnection();
+    </script>
+</body>
+</html>
